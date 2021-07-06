@@ -2,7 +2,9 @@ import argparse
 
 import numpy as np
 import pandas as pd
+import pickle
 
+import torch
 from pandas.tseries.frequencies import to_offset
 from sklearn.externals import joblib
 from sklearn.metrics import mean_absolute_error, mean_squared_error
@@ -10,6 +12,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from azureml.automl.runtime.shared.score import scoring, constants
 from azureml.core import Run
 
+import json
+import os
 
 def align_outputs(y_predicted, X_trans, X_test, y_test,
                   predicted_column_name='predicted',
@@ -274,7 +278,27 @@ X_lookback_df = lookback_dataset.drop_columns(columns=[target_column_name])
 y_lookback_df = lookback_dataset.with_timestamp_columns(
     None).keep_columns(columns=[target_column_name])
 
-fitted_model = joblib.load(model_path)
+#print('-----use pickle load-------')
+#with open(model_path, "rb") as model_file:
+#       fitted_model = pickle.load(model_file)
+print('-----use pytorch load-------')
+try:
+    print("Loading model from path:")
+    print(model_path)
+    if torch.cuda.is_available():
+        map_location = lambda storage, loc: storage.cuda()
+    else:
+        map_location = 'cpu'
+
+    with open(model_path, 'rb') as fh:
+        fitted_model = torch.load(fh, map_location=map_location)
+    print("Loading pytorch model successful.")
+except Exception as e:
+    print("failed to load pytorch model")
+    print(e)
+    raise
+
+#fitted_model = joblib.load(model_path)
 
 
 if hasattr(fitted_model, 'get_lookback'):
